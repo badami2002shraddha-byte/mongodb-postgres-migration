@@ -1,7 +1,16 @@
 import os
 import psycopg2
+import logging
 from dotenv import load_dotenv
 from pymongo import MongoClient
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("migration.log", encoding="utf-8"),
+        logging.StreamHandler()
+    ]
+)
 load_dotenv()
 mongo_uri = os.getenv("MONGO_URI")
 client = MongoClient(mongo_uri)
@@ -17,7 +26,7 @@ pg_conn = psycopg2.connect(
     user=os.getenv("POSTGRES_USER"),
     password=os.getenv("POSTGRES_PASSWORD")
 )
-print("PostgreSQL connection successful!")
+logging.info("PostgreSQL connection successful!")
 cursor = pg_conn.cursor()
 insert_query="""
 INSERT INTO customers
@@ -25,6 +34,7 @@ INSERT INTO customers
 VALUES (%s, %s, %s, %s, %s)
 ON CONFLICT (customer_id) DO NOTHING
 """
+logging.info("Starting MongoDB to PostgreSQL data migration...")
 migrated_count = 0
 try:
     for customer in collection.find():
@@ -43,18 +53,18 @@ try:
     source_count = collection.count_documents({})
     cursor.execute("SELECT COUNT(*) FROM customers")
     target_count = cursor.fetchone()[0]
-    print("Data migration completed successfully!")
-    print("Total source records processed:", migrated_count)
+    logging.info("Data migration completed successfully!")
+    logging.info("Total source records processed: %s", migrated_count)
     if source_count == target_count:
-        print("Validation successful: Source and target counts match.")
+        logging.info("Validation successful: Source and target counts match.")
     else:
-        print("Validation failed: Source and target counts do not match.")
-        print("MongoDB count:", source_count)
-        print("PostgreSQL count:", target_count)
+        logging.error("Validation failed: Source and target counts do not match.")
+        logging.info("MongoDB count: %s", source_count)
+        logging.info("PostgreSQL count: %s", target_count)
 
 except Exception as e:
     pg_conn.rollback()
-    print("Migration failed:", e)
+    logging.error("Migration failed: %s", e)
 
 finally:
     cursor.close()
