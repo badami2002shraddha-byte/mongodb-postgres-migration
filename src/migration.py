@@ -44,7 +44,7 @@ try:
     cursor.execute("SELECT COUNT(*) FROM customers")
     target_count = cursor.fetchone()[0]
     print("Data migration completed successfully!")
-    print("Total customer records processed:", migrated_count)
+    print("Total source records processed:", migrated_count)
     if source_count == target_count:
         print("Validation successful: Source and target counts match.")
     else:
